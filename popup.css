@@ -1,0 +1,166 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f7f7f8;
+  color: #1f2328;
+}
+
+.app {
+  width: 380px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.main-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.main-tab {
+  flex: 1;
+  border: 1px solid #c9d1d9;
+  background: #ffffff;
+  color: #1f2328;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.main-tab.active {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #ffffff;
+}
+
+.panel {
+  display: none;
+}
+
+.panel.active {
+  display: block;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 10px;
+}
+
+.tab {
+  border: 1px solid #c9d1d9;
+  background: #ffffff;
+  color: #1f2328;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab.active {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #ffffff;
+}
+
+.title-row {
+  margin-bottom: 8px;
+}
+
+.title-row label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: #57606a;
+}
+
+#noteTitle {
+  width: 100%;
+  border: 1px solid #c9d1d9;
+  border-radius: 6px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  font-size: 13px;
+}
+
+textarea {
+  width: 100%;
+  height: 170px;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid #c9d1d9;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.tool-area {
+  height: 130px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.actions.compact {
+  margin-top: 8px;
+}
+
+button {
+  flex: 1;
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+  background: #1f6feb;
+  color: #fff;
+}
+
+button.small {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+button.secondary {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+button.danger {
+  background: #d1242f;
+  color: #ffffff;
+}
+
+#status {
+  min-height: 16px;
+  margin: 10px 2px 0;
+  font-size: 12px;
+  color: #57606a;
+}

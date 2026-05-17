@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Text Note</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app">
+      <div class="main-tabs" role="tablist" aria-label="Main sections">
+        <button id="mainNotesTab" class="main-tab active" role="tab" aria-selected="true">Notes</button>
+        <button id="mainToolsTab" class="main-tab" role="tab" aria-selected="false">Tools</button>
+      </div>
+
+      <section id="notesPanel" class="panel active" role="tabpanel" aria-label="Notes panel">
+        <div class="header">
+          <h1>Text Note</h1>
+          <button id="newTabBtn" class="small">+ New</button>
+        </div>
+
+        <div id="tabs" class="tabs" aria-label="Note tabs"></div>
+
+        <div class="title-row">
+          <label for="noteTitle">Title</label>
+          <input id="noteTitle" type="text" maxlength="40" placeholder="Note title" />
+        </div>
+
+        <textarea id="note" placeholder="Write your note here..."></textarea>
+
+        <div class="actions">
+          <button id="saveBtn">Save</button>
+          <button id="clearBtn" class="secondary">Clear</button>
+        </div>
+
+        <div class="actions compact">
+          <button id="renameBtn" class="secondary">Rename Tab</button>
+          <button id="deleteBtn" class="danger">Delete Tab</button>
+        </div>
+      </section>
+
+      <section id="toolsPanel" class="panel" role="tabpanel" aria-label="Tools panel">
+        <div class="header">
+          <h1>JSON Formatter</h1>
+        </div>
+
+        <div class="title-row">
+          <label for="jsonInput">Input JSON</label>
+        </div>
+        <textarea id="jsonInput" class="tool-area" placeholder='{"name":"John","age":20}'></textarea>
+
+        <div class="actions">
+          <button id="formatJsonBtn">Format</button>
+          <button id="minifyJsonBtn" class="secondary">Minify</button>
+          <button id="copyJsonBtn" class="secondary">Copy</button>
+        </div>
+
+        <div class="title-row">
+          <label for="jsonOutput">Output</label>
+        </div>
+        <textarea id="jsonOutput" class="tool-area" readonly placeholder="Formatted JSON will appear here"></textarea>
+      </section>
+
+      <p id="status" aria-live="polite"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

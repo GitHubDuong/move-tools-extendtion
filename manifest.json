@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Text Note",
+  "description": "Quickly write and save text notes in Chrome.",
+  "version": "1.0.0",
+  "permissions": ["storage"],
+  "action": {
+    "default_title": "Text Note",
+    "default_popup": "popup.html"
+  }
+}
