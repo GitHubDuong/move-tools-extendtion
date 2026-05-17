@@ -13,6 +13,7 @@
         <button id="mainToolsTab" class="main-tab" role="tab" aria-selected="false">Tools</button>
         <button id="mainSetupTab" class="main-tab" role="tab" aria-selected="false">Setup</button>
       </div>
+      <button id="closeToolBtn" class="close-icon-btn" type="button" aria-label="Close tool" title="Close">×</button>
 
       <section id="notesPanel" class="panel active" role="tabpanel" aria-label="Notes panel">
         <div class="header">
@@ -27,7 +28,13 @@
           <input id="noteTitle" type="text" maxlength="40" placeholder="Note title" />
         </div>
 
-        <textarea id="note" placeholder="Write your note here..."></textarea>
+        <div class="editor-toolbar" aria-label="Note formatting tools">
+          <button id="boldBtn" class="secondary" type="button"><strong>B</strong></button>
+          <button id="italicBtn" class="secondary" type="button"><em>I</em></button>
+          <button id="underlineBtn" class="secondary" type="button"><u>U</u></button>
+          <button id="bulletBtn" class="secondary" type="button">• List</button>
+        </div>
+        <div id="noteEditor" class="note-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
 
         <div class="actions">
           <button id="saveBtn">Save</button>
@@ -44,6 +51,7 @@
         <div class="tool-tabs" role="tablist" aria-label="Tool tabs">
           <button id="toolJsonTab" class="tool-tab active" role="tab" aria-selected="true">JSON Formatter</button>
           <button id="toolRcsTab" class="tool-tab" role="tab" aria-selected="false">RCS</button>
+          <button id="toolTimeTab" class="tool-tab" role="tab" aria-selected="false">Time Converter</button>
         </div>
 
         <section id="jsonToolPanel" class="tool-panel active" role="tabpanel" aria-label="JSON formatter panel">
@@ -108,6 +116,49 @@
           </div>
           <textarea id="rcsResponse" class="tool-area" readonly placeholder="Response will appear here"></textarea>
         </section>
+
+        <section id="timeToolPanel" class="tool-panel" role="tabpanel" aria-label="Time converter panel">
+          <div class="header">
+            <h1>Country Time Converter</h1>
+          </div>
+
+          <div class="env-card">
+            <h2>From</h2>
+            <div class="title-row">
+              <label for="fromTimezone">Timezone</label>
+              <select id="fromTimezone" class="setup-input"></select>
+            </div>
+            <div class="title-row">
+              <label for="timeInput">Input Time</label>
+              <input id="timeInput" class="setup-input" type="time" />
+            </div>
+          </div>
+
+          <div class="env-card">
+            <h2>To</h2>
+            <div class="title-row">
+              <label for="toTimezone">Timezone</label>
+              <select id="toTimezone" class="setup-input"></select>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="convertTimeBtn">Convert Time</button>
+            <button id="swapTimeBtn" class="secondary">Swap</button>
+          </div>
+
+          <div class="title-row">
+            <label>
+              <input id="quickVnToUtc" type="checkbox" />
+              Quick convert GMT+7 (Vietnam) to UTC
+            </label>
+          </div>
+
+          <div class="title-row">
+            <label for="timeOutput">Converted Time</label>
+          </div>
+          <textarea id="timeOutput" class="tool-area" readonly placeholder="Converted time result"></textarea>
+        </section>
       </section>
 
       <section id="setupPanel" class="panel" role="tabpanel" aria-label="Setup panel">
@@ -115,45 +166,48 @@
           <h1>RCS API Setup</h1>
         </div>
 
-        <div class="setup-grid">
-          <section class="env-card" aria-label="UAT setup">
-            <h2>UAT</h2>
-            <div class="title-row">
-              <label for="uatUrl">Input URL</label>
-              <input id="uatUrl" class="setup-input" type="url" placeholder="https://uat-api.example.com/rcs" />
-            </div>
-            <div class="title-row">
-              <label for="uatUsername">Username</label>
-              <input id="uatUsername" class="setup-input" type="text" placeholder="uat_user" />
-            </div>
-            <div class="title-row">
-              <label for="uatPassword">Password</label>
-              <input id="uatPassword" class="setup-input" type="password" placeholder="********" />
-            </div>
-            <div class="actions setup-actions">
-              <button id="saveUatBtn">Save UAT</button>
-            </div>
-          </section>
+        <details class="setup-dropdown" open>
+          <summary>Setup</summary>
+          <div class="setup-grid">
+            <section class="env-card" aria-label="UAT setup">
+              <h2>UAT</h2>
+              <div class="title-row">
+                <label for="uatUrl">Input URL</label>
+                <input id="uatUrl" class="setup-input" type="url" placeholder="https://uat-api.example.com/rcs" />
+              </div>
+              <div class="title-row">
+                <label for="uatUsername">Username</label>
+                <input id="uatUsername" class="setup-input" type="text" placeholder="uat_user" />
+              </div>
+              <div class="title-row">
+                <label for="uatPassword">Password</label>
+                <input id="uatPassword" class="setup-input" type="password" placeholder="********" />
+              </div>
+              <div class="actions setup-actions">
+                <button id="saveUatBtn">Save UAT</button>
+              </div>
+            </section>
 
-          <section class="env-card" aria-label="SIT setup">
-            <h2>SIT</h2>
-            <div class="title-row">
-              <label for="sitUrl">Input URL</label>
-              <input id="sitUrl" class="setup-input" type="url" placeholder="https://sit-api.example.com/rcs" />
-            </div>
-            <div class="title-row">
-              <label for="sitUsername">Username</label>
-              <input id="sitUsername" class="setup-input" type="text" placeholder="sit_user" />
-            </div>
-            <div class="title-row">
-              <label for="sitPassword">Password</label>
-              <input id="sitPassword" class="setup-input" type="password" placeholder="********" />
-            </div>
-            <div class="actions setup-actions">
-              <button id="saveSitBtn">Save SIT</button>
-            </div>
-          </section>
-        </div>
+            <section class="env-card" aria-label="SIT setup">
+              <h2>SIT</h2>
+              <div class="title-row">
+                <label for="sitUrl">Input URL</label>
+                <input id="sitUrl" class="setup-input" type="url" placeholder="https://sit-api.example.com/rcs" />
+              </div>
+              <div class="title-row">
+                <label for="sitUsername">Username</label>
+                <input id="sitUsername" class="setup-input" type="text" placeholder="sit_user" />
+              </div>
+              <div class="title-row">
+                <label for="sitPassword">Password</label>
+                <input id="sitPassword" class="setup-input" type="password" placeholder="********" />
+              </div>
+              <div class="actions setup-actions">
+                <button id="saveSitBtn">Save SIT</button>
+              </div>
+            </section>
+          </div>
+        </details>
       </section>
 
       <p id="status" aria-live="polite"></p>

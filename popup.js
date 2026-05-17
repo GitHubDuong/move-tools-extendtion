@@ -10,12 +10,18 @@ const setupPanelEl = document.getElementById("setupPanel");
 
 const toolJsonTabEl = document.getElementById("toolJsonTab");
 const toolRcsTabEl = document.getElementById("toolRcsTab");
+const toolTimeTabEl = document.getElementById("toolTimeTab");
 const jsonToolPanelEl = document.getElementById("jsonToolPanel");
 const rcsToolPanelEl = document.getElementById("rcsToolPanel");
+const timeToolPanelEl = document.getElementById("timeToolPanel");
 
 const tabsEl = document.getElementById("tabs");
 const noteTitleEl = document.getElementById("noteTitle");
-const noteEl = document.getElementById("note");
+const noteEditorEl = document.getElementById("noteEditor");
+const boldBtn = document.getElementById("boldBtn");
+const italicBtn = document.getElementById("italicBtn");
+const underlineBtn = document.getElementById("underlineBtn");
+const bulletBtn = document.getElementById("bulletBtn");
 const saveBtn = document.getElementById("saveBtn");
 const clearBtn = document.getElementById("clearBtn");
 const renameBtn = document.getElementById("renameBtn");
@@ -36,6 +42,14 @@ const rcsResponseEl = document.getElementById("rcsResponse");
 const rcsCallBtn = document.getElementById("rcsCallBtn");
 const rcsClearBtn = document.getElementById("rcsClearBtn");
 
+const fromTimezoneEl = document.getElementById("fromTimezone");
+const toTimezoneEl = document.getElementById("toTimezone");
+const timeInputEl = document.getElementById("timeInput");
+const convertTimeBtn = document.getElementById("convertTimeBtn");
+const swapTimeBtn = document.getElementById("swapTimeBtn");
+const quickVnToUtcEl = document.getElementById("quickVnToUtc");
+const timeOutputEl = document.getElementById("timeOutput");
+
 const uatUrlEl = document.getElementById("uatUrl");
 const uatUsernameEl = document.getElementById("uatUsername");
 const uatPasswordEl = document.getElementById("uatPassword");
@@ -46,6 +60,7 @@ const saveUatBtn = document.getElementById("saveUatBtn");
 const saveSitBtn = document.getElementById("saveSitBtn");
 
 const statusEl = document.getElementById("status");
+const closeToolBtn = document.getElementById("closeToolBtn");
 
 function createDefaultSetup() {
   return {
@@ -85,6 +100,19 @@ function createNote(title = DEFAULT_TITLE, content = "") {
 
 function getActiveNote() {
   return state.notes.find((note) => note.id === state.activeId) || null;
+}
+
+function normalizeEditorHtml(html) {
+  const trimmed = html.trim();
+  if (!trimmed || trimmed === "<br>" || trimmed === "<div><br></div>") {
+    return "";
+  }
+  return html;
+}
+
+function applyNoteFormat(command) {
+  noteEditorEl.focus();
+  document.execCommand(command, false);
 }
 
 function normalizeSetup(rawSetup) {
@@ -153,19 +181,24 @@ function setMainTab(tabName) {
 }
 
 function setToolTab(tabName) {
-  state.activeToolTab = tabName === "rcs" ? "rcs" : "json";
+  state.activeToolTab = ["json", "rcs", "time"].includes(tabName) ? tabName : "json";
 
   const jsonActive = state.activeToolTab === "json";
+  const rcsActive = state.activeToolTab === "rcs";
+  const timeActive = state.activeToolTab === "time";
   toolJsonTabEl.classList.toggle("active", jsonActive);
-  toolRcsTabEl.classList.toggle("active", !jsonActive);
+  toolRcsTabEl.classList.toggle("active", rcsActive);
+  toolTimeTabEl.classList.toggle("active", timeActive);
 
   toolJsonTabEl.setAttribute("aria-selected", String(jsonActive));
-  toolRcsTabEl.setAttribute("aria-selected", String(!jsonActive));
+  toolRcsTabEl.setAttribute("aria-selected", String(rcsActive));
+  toolTimeTabEl.setAttribute("aria-selected", String(timeActive));
 
   jsonToolPanelEl.classList.toggle("active", jsonActive);
-  rcsToolPanelEl.classList.toggle("active", !jsonActive);
+  rcsToolPanelEl.classList.toggle("active", rcsActive);
+  timeToolPanelEl.classList.toggle("active", timeActive);
 
-  if (!jsonActive) {
+  if (rcsActive) {
     loadRcsConfigForSelectedEnv();
   }
 
@@ -193,16 +226,16 @@ function renderEditor() {
   const active = getActiveNote();
   if (!active) {
     noteTitleEl.value = "";
-    noteEl.value = "";
+    noteEditorEl.innerHTML = "";
     noteTitleEl.disabled = true;
-    noteEl.disabled = true;
+    noteEditorEl.contentEditable = "false";
     return;
   }
 
   noteTitleEl.disabled = false;
-  noteEl.disabled = false;
+  noteEditorEl.contentEditable = "true";
   noteTitleEl.value = active.title;
-  noteEl.value = active.content;
+  noteEditorEl.innerHTML = active.content || "";
 }
 
 function render() {
@@ -254,7 +287,7 @@ async function loadState() {
       notes: safeNotes,
       activeId: activeExists ? saved.activeId : safeNotes[0].id,
       activeMainTab: ["notes", "tools", "setup"].includes(saved.activeMainTab) ? saved.activeMainTab : "notes",
-      activeToolTab: saved.activeToolTab === "rcs" ? "rcs" : "json",
+      activeToolTab: ["json", "rcs", "time"].includes(saved.activeToolTab) ? saved.activeToolTab : "json",
       setup: normalizeSetup(saved.setup)
     };
   }
@@ -269,7 +302,7 @@ async function saveCurrentNote() {
   }
 
   active.title = noteTitleEl.value.trim() || DEFAULT_TITLE;
-  active.content = noteEl.value;
+  active.content = normalizeEditorHtml(noteEditorEl.innerHTML);
   render();
   await persistState();
   setStatus("Saved");
@@ -282,7 +315,7 @@ async function clearCurrentNote() {
   }
 
   active.content = "";
-  noteEl.value = "";
+  noteEditorEl.innerHTML = "";
   await persistState();
   setStatus("Cleared");
 }
@@ -534,6 +567,172 @@ function clearRcsTool() {
   rcsResponseEl.value = "";
 }
 
+function getSupportedTimeZones() {
+  if (typeof Intl.supportedValuesOf === "function") {
+    return Intl.supportedValuesOf("timeZone");
+  }
+  return ["UTC"];
+}
+
+function populateTimezoneSelect(timezoneEl, preferredTimezone = "") {
+  const zones = getSupportedTimeZones();
+  timezoneEl.innerHTML = "";
+  zones.forEach((zone) => {
+    const option = document.createElement("option");
+    option.value = zone;
+    option.textContent = `${zone} (${formatOffset(getTimeZoneOffsetMinutes(zone, new Date()))})`;
+    timezoneEl.appendChild(option);
+  });
+  if (preferredTimezone && zones.includes(preferredTimezone)) {
+    timezoneEl.value = preferredTimezone;
+  }
+}
+
+function initTimeTool() {
+  populateTimezoneSelect(fromTimezoneEl, "Asia/Ho_Chi_Minh");
+  populateTimezoneSelect(toTimezoneEl, "America/New_York");
+
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  timeInputEl.value = `${hh}:${mm}`;
+  applyQuickVnToUtcMode();
+}
+
+function getTimeZoneOffsetMinutes(timeZone, date) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
+
+  const parts = formatter.formatToParts(date);
+  const get = (type) => parts.find((p) => p.type === type)?.value || "00";
+  const asUtc = Date.UTC(
+    Number(get("year")),
+    Number(get("month")) - 1,
+    Number(get("day")),
+    Number(get("hour")),
+    Number(get("minute")),
+    Number(get("second"))
+  );
+  return (asUtc - date.getTime()) / 60000;
+}
+
+function formatOffset(offsetMinutes) {
+  const roundedMinutes = Math.round(offsetMinutes);
+  const sign = roundedMinutes >= 0 ? "+" : "-";
+  const abs = Math.abs(roundedMinutes);
+  const hh = String(Math.floor(abs / 60)).padStart(2, "0");
+  const mm = String(abs % 60).padStart(2, "0");
+  return `UTC${sign}${hh}:${mm}`;
+}
+
+function getTodayInTimeZone(timeZone) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+  const parts = formatter.formatToParts(new Date());
+  const get = (type) => Number(parts.find((p) => p.type === type)?.value || "0");
+  return { year: get("year"), month: get("month"), day: get("day") };
+}
+
+function localTimeInZoneToUtcMs(localTime, timeZone) {
+  const match = localTime.match(/^(\d{2}):(\d{2})$/);
+  if (!match) {
+    throw new Error("Invalid input time");
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const today = getTodayInTimeZone(timeZone);
+  const year = today.year;
+  const month = today.month;
+  const day = today.day;
+
+  let utcMs = Date.UTC(year, month - 1, day, hour, minute, 0);
+  for (let i = 0; i < 3; i += 1) {
+    const offset = getTimeZoneOffsetMinutes(timeZone, new Date(utcMs));
+    utcMs = Date.UTC(year, month - 1, day, hour, minute, 0) - offset * 60000;
+  }
+  return utcMs;
+}
+
+function formatInTimeZone(utcMs, timeZone) {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
+  return formatter.format(new Date(utcMs));
+}
+
+function convertCountryTime() {
+  const inputValue = timeInputEl.value;
+  if (!inputValue) {
+    setStatus("Input time is required");
+    return;
+  }
+
+  try {
+    const fromZone = fromTimezoneEl.value;
+    const toZone = toTimezoneEl.value;
+    const utcMs = localTimeInZoneToUtcMs(inputValue, fromZone);
+    const isoOutput = new Date(utcMs).toISOString();
+    const result = [
+      `From: ${fromZone}`,
+      `To: ${toZone}`,
+      `Input: ${inputValue}`
+    ];
+    result.push(`Output: ${isoOutput}`);
+    timeOutputEl.value = result.join("\n");
+    setStatus("Time converted");
+  } catch (error) {
+    timeOutputEl.value = "";
+    setStatus(`Convert failed: ${error.message}`);
+  }
+}
+
+function swapTimeDirection() {
+  if (quickVnToUtcEl.checked) {
+    return;
+  }
+  const fromTimezone = fromTimezoneEl.value;
+  fromTimezoneEl.value = toTimezoneEl.value;
+  toTimezoneEl.value = fromTimezone;
+}
+
+function setTimezoneIfAvailable(selectEl, preferredValues) {
+  const options = Array.from(selectEl.options).map((o) => o.value);
+  const found = preferredValues.find((value) => options.includes(value));
+  if (found) {
+    selectEl.value = found;
+  }
+}
+
+function applyQuickVnToUtcMode() {
+  const quickMode = quickVnToUtcEl.checked;
+  if (quickMode) {
+    setTimezoneIfAvailable(fromTimezoneEl, ["Asia/Ho_Chi_Minh"]);
+    setTimezoneIfAvailable(toTimezoneEl, ["UTC", "Etc/UTC"]);
+  }
+  fromTimezoneEl.disabled = quickMode;
+  toTimezoneEl.disabled = quickMode;
+}
+
 saveBtn.addEventListener("click", () => {
   saveCurrentNote().catch(() => setStatus("Save failed"));
 });
@@ -568,6 +767,7 @@ mainSetupTabEl.addEventListener("click", () => setMainTab("setup"));
 
 toolJsonTabEl.addEventListener("click", () => setToolTab("json"));
 toolRcsTabEl.addEventListener("click", () => setToolTab("rcs"));
+toolTimeTabEl.addEventListener("click", () => setToolTab("time"));
 rcsEnvEl.addEventListener("change", loadRcsConfigForSelectedEnv);
 
 formatJsonBtn.addEventListener("click", formatJson);
@@ -581,8 +781,17 @@ rcsCallBtn.addEventListener("click", () => {
 });
 
 rcsClearBtn.addEventListener("click", clearRcsTool);
+convertTimeBtn.addEventListener("click", convertCountryTime);
+swapTimeBtn.addEventListener("click", swapTimeDirection);
+quickVnToUtcEl.addEventListener("change", applyQuickVnToUtcMode);
 
-noteEl.addEventListener("keydown", (event) => {
+boldBtn.addEventListener("click", () => applyNoteFormat("bold"));
+italicBtn.addEventListener("click", () => applyNoteFormat("italic"));
+underlineBtn.addEventListener("click", () => applyNoteFormat("underline"));
+bulletBtn.addEventListener("click", () => applyNoteFormat("insertUnorderedList"));
+closeToolBtn.addEventListener("click", () => window.close());
+
+noteEditorEl.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
     event.preventDefault();
     saveCurrentNote().catch(() => setStatus("Save failed"));
@@ -592,3 +801,5 @@ noteEl.addEventListener("keydown", (event) => {
 loadState().catch(() => {
   setStatus("Failed to load notes");
 });
+
+initTimeTool();

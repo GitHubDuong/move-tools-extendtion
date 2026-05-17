@@ -4,6 +4,7 @@ A Chrome extension with three main tabs:
 
 - `Notes`: multi-note tab management (similar to Sticky Notes)
 - `Tools`: `JSON Formatter` and `RCS API Caller`
+  - plus `Country Time Converter`
 - `Setup`: RCS API environment configuration
 
 ## Install in Chrome
@@ -13,6 +14,12 @@ A Chrome extension with three main tabs:
 3. Turn on **Developer mode** (top-right).
 4. Click **Load unpacked**.
 5. Select the `chrome-text-note-extension` folder.
+
+## Usage Mode
+
+- Click the extension icon to open tools in Chrome Side Panel.
+- You can operate on the web page and extension tools simultaneously.
+- Click `Close Tool` inside the extension to hide it.
 
 ## Features
 
@@ -24,6 +31,7 @@ A Chrome extension with three main tabs:
 - Delete tab
 - Save note content
 - Clear note content
+- Rich text editing: bold, italic, underline, bullet list
 - Keyboard save (`Ctrl+S` / `Cmd+S`)
 - Persistent storage via `chrome.storage.local`
 
@@ -41,12 +49,23 @@ A Chrome extension with three main tabs:
 - Select environment: `SIT` or `UAT`
 - Load URL, username, password from `Setup`
 - If missing setup values, show: `missing configurations`
-- Input request values as JSON body
+- Payload type is `Other` (not JSON)
+- Input request values as raw payload body
+- Configure `Content-Type` (default: `text/plain`)
 - Call POST API with:
   - URL from setup configuration
   - Basic Authentication (`username` + `password`)
-  - JSON body from input values
+  - Raw body from input values
 - Show full response result (`status`, `ok`, `statusText`, `body`)
+
+#### Country Time Converter
+
+- Select source timezone
+- Input source time only (`HH:mm`)
+- Select destination timezone
+- Timezone dropdown supports all available timezones and shows zone + UTC offset
+- Convert and output converted time (time only)
+- Swap source/destination timezone quickly
 
 ### Setup tab
 

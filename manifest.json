@@ -1,12 +1,27 @@
 {
   "manifest_version": 3,
-  "name": "Text Note",
-  "description": "Quickly write and save text notes in Chrome.",
-  "version": "1.0.1",
-  "permissions": ["storage"],
+  "name": "Move Tool",
+  "description": "Tool create by Duong Move Team",
+  "version": "1.0.2",
+  "permissions": ["storage", "sidePanel"],
   "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "icons": {
+    "16": "logo.png",
+    "32": "logo.png",
+    "48": "logo.png",
+    "128": "logo.png"
+  },
   "action": {
     "default_title": "Text Note",
-    "default_popup": "popup.html"
+    "default_icon": {
+      "16": "logo.png",
+      "32": "logo.png"
+    }
   }
 }

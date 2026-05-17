@@ -13,12 +13,37 @@ body {
   width: 390px;
   padding: 12px;
   box-sizing: border-box;
+  position: relative;
 }
 
 .main-tabs {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.close-icon-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.close-icon-btn:hover {
+  background: #f1f5f9;
 }
 
 .main-tab {
@@ -50,6 +75,7 @@ body {
   display: flex;
   gap: 8px;
   margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 
 .tool-tab {
@@ -155,6 +181,37 @@ textarea {
   line-height: 1.4;
 }
 
+.editor-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.editor-toolbar button {
+  flex: 0 0 auto;
+  min-width: 44px;
+}
+
+.note-editor {
+  width: 100%;
+  min-height: 170px;
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid #c9d1d9;
+  border-radius: 6px;
+  box-sizing: border-box;
+  background: #ffffff;
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.note-editor:empty::before {
+  content: "Write your note here...";
+  color: #9ca3af;
+}
+
 .tool-area {
   height: 130px;
 }
@@ -177,6 +234,24 @@ textarea {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
+}
+
+.setup-dropdown {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 8px 10px 12px;
+}
+
+.setup-dropdown > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 10px;
+}
+
+.setup-dropdown[open] > summary {
+  margin-bottom: 12px;
 }
 
 .env-card {
