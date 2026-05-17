@@ -81,26 +81,22 @@
             </select>
           </div>
 
-          <div class="env-card compact-card">
-            <h2>Loaded Configuration</h2>
-            <div class="title-row">
-              <label for="rcsLoadedUrl">URL</label>
-              <input id="rcsLoadedUrl" class="setup-input" type="text" readonly />
-            </div>
-            <div class="title-row">
-              <label for="rcsLoadedUsername">Username</label>
-              <input id="rcsLoadedUsername" class="setup-input" type="text" readonly />
-            </div>
-            <div class="title-row">
-              <label for="rcsLoadedPassword">Password</label>
-              <input id="rcsLoadedPassword" class="setup-input" type="text" readonly />
-            </div>
+          <div class="title-row">
+            <label for="rcsPayloadType">Payload Type</label>
+            <select id="rcsPayloadType" class="setup-input">
+              <option value="other" selected>Other</option>
+            </select>
           </div>
 
           <div class="title-row">
-            <label for="rcsBodyInput">Input Values (JSON Body)</label>
+            <label for="rcsContentType">Content-Type</label>
+            <input id="rcsContentType" class="setup-input" type="text" value="text/plain" />
           </div>
-          <textarea id="rcsBodyInput" class="tool-area" placeholder='{"msisdn":"84901234567","message":"hello"}'></textarea>
+
+          <div class="title-row">
+            <label for="rcsBodyInput">Input Values (Other Payload)</label>
+          </div>
+          <textarea id="rcsBodyInput" class="tool-area" placeholder="msisdn=84901234567&message=hello"></textarea>
 
           <div class="actions">
             <button id="rcsCallBtn">Call POST API</button>

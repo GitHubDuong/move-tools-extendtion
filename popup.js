@@ -29,9 +29,8 @@ const minifyJsonBtn = document.getElementById("minifyJsonBtn");
 const copyJsonBtn = document.getElementById("copyJsonBtn");
 
 const rcsEnvEl = document.getElementById("rcsEnv");
-const rcsLoadedUrlEl = document.getElementById("rcsLoadedUrl");
-const rcsLoadedUsernameEl = document.getElementById("rcsLoadedUsername");
-const rcsLoadedPasswordEl = document.getElementById("rcsLoadedPassword");
+const rcsPayloadTypeEl = document.getElementById("rcsPayloadType");
+const rcsContentTypeEl = document.getElementById("rcsContentType");
 const rcsBodyInputEl = document.getElementById("rcsBodyInput");
 const rcsResponseEl = document.getElementById("rcsResponse");
 const rcsCallBtn = document.getElementById("rcsCallBtn");
@@ -444,12 +443,6 @@ async function copyJsonOutput() {
   }
 }
 
-function clearRcsLoadedConfig() {
-  rcsLoadedUrlEl.value = "";
-  rcsLoadedUsernameEl.value = "";
-  rcsLoadedPasswordEl.value = "";
-}
-
 function getConfigForEnv(env) {
   return env === "uat" ? state.setup.uat : state.setup.sit;
 }
@@ -463,14 +456,10 @@ function loadRcsConfigForSelectedEnv() {
   const config = getConfigForEnv(env);
 
   if (!hasRequiredConfig(config)) {
-    clearRcsLoadedConfig();
     setStatus("missing configurations");
     return null;
   }
 
-  rcsLoadedUrlEl.value = config.url.trim();
-  rcsLoadedUsernameEl.value = config.username.trim();
-  rcsLoadedPasswordEl.value = "********";
   return config;
 }
 
@@ -486,11 +475,17 @@ async function callRcsApi() {
     return;
   }
 
-  let requestBody;
-  try {
-    requestBody = parseJsonRaw(rcsBodyInputEl.value, { allowRepair: true }).parsed;
-  } catch (error) {
-    setStatus(`Invalid JSON: ${error.message}`);
+  const payloadType = rcsPayloadTypeEl.value;
+  const contentType = (rcsContentTypeEl.value || "text/plain").trim() || "text/plain";
+  const rawBody = rcsBodyInputEl.value;
+
+  if (payloadType !== "other") {
+    setStatus("Unsupported payload type");
+    return;
+  }
+
+  if (!rawBody.trim()) {
+    setStatus("Input values are required");
     return;
   }
 
@@ -500,10 +495,10 @@ async function callRcsApi() {
     const response = await fetch(config.url.trim(), {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": contentType,
         Authorization: toBasicAuthHeader(config.username.trim(), config.password)
       },
-      body: JSON.stringify(requestBody)
+      body: rawBody
     });
 
     const rawText = await response.text();
@@ -534,6 +529,8 @@ async function callRcsApi() {
 
 function clearRcsTool() {
   rcsBodyInputEl.value = "";
+  rcsPayloadTypeEl.value = "other";
+  rcsContentTypeEl.value = "text/plain";
   rcsResponseEl.value = "";
 }
 
