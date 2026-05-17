@@ -11,6 +11,7 @@
       <div class="main-tabs" role="tablist" aria-label="Main sections">
         <button id="mainNotesTab" class="main-tab active" role="tab" aria-selected="true">Notes</button>
         <button id="mainToolsTab" class="main-tab" role="tab" aria-selected="false">Tools</button>
+        <button id="mainSetupTab" class="main-tab" role="tab" aria-selected="false">Setup</button>
       </div>
 
       <section id="notesPanel" class="panel active" role="tabpanel" aria-label="Notes panel">
@@ -40,25 +41,123 @@
       </section>
 
       <section id="toolsPanel" class="panel" role="tabpanel" aria-label="Tools panel">
+        <div class="tool-tabs" role="tablist" aria-label="Tool tabs">
+          <button id="toolJsonTab" class="tool-tab active" role="tab" aria-selected="true">JSON Formatter</button>
+          <button id="toolRcsTab" class="tool-tab" role="tab" aria-selected="false">RCS</button>
+        </div>
+
+        <section id="jsonToolPanel" class="tool-panel active" role="tabpanel" aria-label="JSON formatter panel">
+          <div class="header">
+            <h1>JSON Formatter</h1>
+          </div>
+
+          <div class="title-row">
+            <label for="jsonInput">Input JSON</label>
+          </div>
+          <textarea id="jsonInput" class="tool-area" placeholder='{"name":"John","age":20}'></textarea>
+
+          <div class="actions">
+            <button id="formatJsonBtn">Format</button>
+            <button id="minifyJsonBtn" class="secondary">Minify</button>
+            <button id="copyJsonBtn" class="secondary">Copy</button>
+          </div>
+
+          <div class="title-row">
+            <label for="jsonOutput">Output</label>
+          </div>
+          <textarea id="jsonOutput" class="tool-area" readonly placeholder="Formatted JSON will appear here"></textarea>
+        </section>
+
+        <section id="rcsToolPanel" class="tool-panel" role="tabpanel" aria-label="RCS tool panel">
+          <div class="header">
+            <h1>RCS API Caller</h1>
+          </div>
+
+          <div class="title-row">
+            <label for="rcsEnv">Environment</label>
+            <select id="rcsEnv" class="setup-input">
+              <option value="sit">SIT</option>
+              <option value="uat">UAT</option>
+            </select>
+          </div>
+
+          <div class="env-card compact-card">
+            <h2>Loaded Configuration</h2>
+            <div class="title-row">
+              <label for="rcsLoadedUrl">URL</label>
+              <input id="rcsLoadedUrl" class="setup-input" type="text" readonly />
+            </div>
+            <div class="title-row">
+              <label for="rcsLoadedUsername">Username</label>
+              <input id="rcsLoadedUsername" class="setup-input" type="text" readonly />
+            </div>
+            <div class="title-row">
+              <label for="rcsLoadedPassword">Password</label>
+              <input id="rcsLoadedPassword" class="setup-input" type="text" readonly />
+            </div>
+          </div>
+
+          <div class="title-row">
+            <label for="rcsBodyInput">Input Values (JSON Body)</label>
+          </div>
+          <textarea id="rcsBodyInput" class="tool-area" placeholder='{"msisdn":"84901234567","message":"hello"}'></textarea>
+
+          <div class="actions">
+            <button id="rcsCallBtn">Call POST API</button>
+            <button id="rcsClearBtn" class="secondary">Clear</button>
+          </div>
+
+          <div class="title-row">
+            <label for="rcsResponse">Response</label>
+          </div>
+          <textarea id="rcsResponse" class="tool-area" readonly placeholder="Response will appear here"></textarea>
+        </section>
+      </section>
+
+      <section id="setupPanel" class="panel" role="tabpanel" aria-label="Setup panel">
         <div class="header">
-          <h1>JSON Formatter</h1>
+          <h1>RCS API Setup</h1>
         </div>
 
-        <div class="title-row">
-          <label for="jsonInput">Input JSON</label>
-        </div>
-        <textarea id="jsonInput" class="tool-area" placeholder='{"name":"John","age":20}'></textarea>
+        <div class="setup-grid">
+          <section class="env-card" aria-label="UAT setup">
+            <h2>UAT</h2>
+            <div class="title-row">
+              <label for="uatUrl">Input URL</label>
+              <input id="uatUrl" class="setup-input" type="url" placeholder="https://uat-api.example.com/rcs" />
+            </div>
+            <div class="title-row">
+              <label for="uatUsername">Username</label>
+              <input id="uatUsername" class="setup-input" type="text" placeholder="uat_user" />
+            </div>
+            <div class="title-row">
+              <label for="uatPassword">Password</label>
+              <input id="uatPassword" class="setup-input" type="password" placeholder="********" />
+            </div>
+            <div class="actions setup-actions">
+              <button id="saveUatBtn">Save UAT</button>
+            </div>
+          </section>
 
-        <div class="actions">
-          <button id="formatJsonBtn">Format</button>
-          <button id="minifyJsonBtn" class="secondary">Minify</button>
-          <button id="copyJsonBtn" class="secondary">Copy</button>
+          <section class="env-card" aria-label="SIT setup">
+            <h2>SIT</h2>
+            <div class="title-row">
+              <label for="sitUrl">Input URL</label>
+              <input id="sitUrl" class="setup-input" type="url" placeholder="https://sit-api.example.com/rcs" />
+            </div>
+            <div class="title-row">
+              <label for="sitUsername">Username</label>
+              <input id="sitUsername" class="setup-input" type="text" placeholder="sit_user" />
+            </div>
+            <div class="title-row">
+              <label for="sitPassword">Password</label>
+              <input id="sitPassword" class="setup-input" type="password" placeholder="********" />
+            </div>
+            <div class="actions setup-actions">
+              <button id="saveSitBtn">Save SIT</button>
+            </div>
+          </section>
         </div>
-
-        <div class="title-row">
-          <label for="jsonOutput">Output</label>
-        </div>
-        <textarea id="jsonOutput" class="tool-area" readonly placeholder="Formatted JSON will appear here"></textarea>
       </section>
 
       <p id="status" aria-live="polite"></p>

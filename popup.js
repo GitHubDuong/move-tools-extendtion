@@ -3,8 +3,15 @@ const DEFAULT_TITLE = "New Note";
 
 const mainNotesTabEl = document.getElementById("mainNotesTab");
 const mainToolsTabEl = document.getElementById("mainToolsTab");
+const mainSetupTabEl = document.getElementById("mainSetupTab");
 const notesPanelEl = document.getElementById("notesPanel");
 const toolsPanelEl = document.getElementById("toolsPanel");
+const setupPanelEl = document.getElementById("setupPanel");
+
+const toolJsonTabEl = document.getElementById("toolJsonTab");
+const toolRcsTabEl = document.getElementById("toolRcsTab");
+const jsonToolPanelEl = document.getElementById("jsonToolPanel");
+const rcsToolPanelEl = document.getElementById("rcsToolPanel");
 
 const tabsEl = document.getElementById("tabs");
 const noteTitleEl = document.getElementById("noteTitle");
@@ -21,12 +28,39 @@ const formatJsonBtn = document.getElementById("formatJsonBtn");
 const minifyJsonBtn = document.getElementById("minifyJsonBtn");
 const copyJsonBtn = document.getElementById("copyJsonBtn");
 
+const rcsEnvEl = document.getElementById("rcsEnv");
+const rcsLoadedUrlEl = document.getElementById("rcsLoadedUrl");
+const rcsLoadedUsernameEl = document.getElementById("rcsLoadedUsername");
+const rcsLoadedPasswordEl = document.getElementById("rcsLoadedPassword");
+const rcsBodyInputEl = document.getElementById("rcsBodyInput");
+const rcsResponseEl = document.getElementById("rcsResponse");
+const rcsCallBtn = document.getElementById("rcsCallBtn");
+const rcsClearBtn = document.getElementById("rcsClearBtn");
+
+const uatUrlEl = document.getElementById("uatUrl");
+const uatUsernameEl = document.getElementById("uatUsername");
+const uatPasswordEl = document.getElementById("uatPassword");
+const sitUrlEl = document.getElementById("sitUrl");
+const sitUsernameEl = document.getElementById("sitUsername");
+const sitPasswordEl = document.getElementById("sitPassword");
+const saveUatBtn = document.getElementById("saveUatBtn");
+const saveSitBtn = document.getElementById("saveSitBtn");
+
 const statusEl = document.getElementById("status");
+
+function createDefaultSetup() {
+  return {
+    uat: { url: "", username: "", password: "" },
+    sit: { url: "", username: "", password: "" }
+  };
+}
 
 let state = {
   notes: [],
   activeId: null,
-  activeMainTab: "notes"
+  activeMainTab: "notes",
+  activeToolTab: "json",
+  setup: createDefaultSetup()
 };
 
 function setStatus(message) {
@@ -54,6 +88,40 @@ function getActiveNote() {
   return state.notes.find((note) => note.id === state.activeId) || null;
 }
 
+function normalizeSetup(rawSetup) {
+  const fallback = createDefaultSetup();
+  if (!rawSetup || typeof rawSetup !== "object") {
+    return fallback;
+  }
+
+  const safeEnv = (env) => {
+    if (!env || typeof env !== "object") {
+      return { url: "", username: "", password: "" };
+    }
+
+    return {
+      url: typeof env.url === "string" ? env.url : "",
+      username: typeof env.username === "string" ? env.username : "",
+      password: typeof env.password === "string" ? env.password : ""
+    };
+  };
+
+  return {
+    uat: safeEnv(rawSetup.uat),
+    sit: safeEnv(rawSetup.sit)
+  };
+}
+
+function renderSetupFields() {
+  uatUrlEl.value = state.setup.uat.url;
+  uatUsernameEl.value = state.setup.uat.username;
+  uatPasswordEl.value = state.setup.uat.password;
+
+  sitUrlEl.value = state.setup.sit.url;
+  sitUsernameEl.value = state.setup.sit.username;
+  sitPasswordEl.value = state.setup.sit.password;
+}
+
 async function persistState() {
   await chrome.storage.local.set({ [STORAGE_KEY]: state });
 }
@@ -64,17 +132,43 @@ function getTabLabel(title, index) {
 }
 
 function setMainTab(tabName) {
-  state.activeMainTab = tabName === "tools" ? "tools" : "notes";
+  state.activeMainTab = ["notes", "tools", "setup"].includes(tabName) ? tabName : "notes";
 
   const notesActive = state.activeMainTab === "notes";
+  const toolsActive = state.activeMainTab === "tools";
+  const setupActive = state.activeMainTab === "setup";
+
   mainNotesTabEl.classList.toggle("active", notesActive);
-  mainToolsTabEl.classList.toggle("active", !notesActive);
+  mainToolsTabEl.classList.toggle("active", toolsActive);
+  mainSetupTabEl.classList.toggle("active", setupActive);
 
   mainNotesTabEl.setAttribute("aria-selected", String(notesActive));
-  mainToolsTabEl.setAttribute("aria-selected", String(!notesActive));
+  mainToolsTabEl.setAttribute("aria-selected", String(toolsActive));
+  mainSetupTabEl.setAttribute("aria-selected", String(setupActive));
 
   notesPanelEl.classList.toggle("active", notesActive);
-  toolsPanelEl.classList.toggle("active", !notesActive);
+  toolsPanelEl.classList.toggle("active", toolsActive);
+  setupPanelEl.classList.toggle("active", setupActive);
+
+  persistState().catch(() => setStatus("Save failed"));
+}
+
+function setToolTab(tabName) {
+  state.activeToolTab = tabName === "rcs" ? "rcs" : "json";
+
+  const jsonActive = state.activeToolTab === "json";
+  toolJsonTabEl.classList.toggle("active", jsonActive);
+  toolRcsTabEl.classList.toggle("active", !jsonActive);
+
+  toolJsonTabEl.setAttribute("aria-selected", String(jsonActive));
+  toolRcsTabEl.setAttribute("aria-selected", String(!jsonActive));
+
+  jsonToolPanelEl.classList.toggle("active", jsonActive);
+  rcsToolPanelEl.classList.toggle("active", !jsonActive);
+
+  if (!jsonActive) {
+    loadRcsConfigForSelectedEnv();
+  }
 
   persistState().catch(() => setStatus("Save failed"));
 }
@@ -115,6 +209,8 @@ function renderEditor() {
 function render() {
   renderTabs();
   renderEditor();
+  renderSetupFields();
+  setToolTab(state.activeToolTab);
   setMainTab(state.activeMainTab);
 }
 
@@ -124,7 +220,13 @@ async function loadState() {
 
   if (!saved || !Array.isArray(saved.notes) || saved.notes.length === 0) {
     const first = createNote("Note 1", "");
-    state = { notes: [first], activeId: first.id, activeMainTab: "notes" };
+    state = {
+      notes: [first],
+      activeId: first.id,
+      activeMainTab: "notes",
+      activeToolTab: "json",
+      setup: createDefaultSetup()
+    };
     await persistState();
     render();
     return;
@@ -140,13 +242,21 @@ async function loadState() {
 
   if (safeNotes.length === 0) {
     const first = createNote("Note 1", "");
-    state = { notes: [first], activeId: first.id, activeMainTab: "notes" };
+    state = {
+      notes: [first],
+      activeId: first.id,
+      activeMainTab: "notes",
+      activeToolTab: "json",
+      setup: normalizeSetup(saved.setup)
+    };
   } else {
     const activeExists = safeNotes.some((n) => n.id === saved.activeId);
     state = {
       notes: safeNotes,
       activeId: activeExists ? saved.activeId : safeNotes[0].id,
-      activeMainTab: saved.activeMainTab === "tools" ? "tools" : "notes"
+      activeMainTab: ["notes", "tools", "setup"].includes(saved.activeMainTab) ? saved.activeMainTab : "notes",
+      activeToolTab: saved.activeToolTab === "rcs" ? "rcs" : "json",
+      setup: normalizeSetup(saved.setup)
     };
   }
 
@@ -218,6 +328,25 @@ async function deleteCurrentTab() {
   setStatus("Tab deleted");
 }
 
+async function saveSetupEnvironment(env) {
+  if (!state.setup[env]) {
+    return;
+  }
+
+  if (env === "uat") {
+    state.setup.uat.url = uatUrlEl.value.trim();
+    state.setup.uat.username = uatUsernameEl.value.trim();
+    state.setup.uat.password = uatPasswordEl.value;
+  } else {
+    state.setup.sit.url = sitUrlEl.value.trim();
+    state.setup.sit.username = sitUsernameEl.value.trim();
+    state.setup.sit.password = sitPasswordEl.value;
+  }
+
+  await persistState();
+  setStatus(`${env.toUpperCase()} setup saved`);
+}
+
 function normalizeQuotes(raw) {
   return raw
     .replace(/[\u201C\u201D]/g, "\"")
@@ -254,24 +383,28 @@ function tryRepairJson(raw) {
   return repaired.trim();
 }
 
-function parseJsonInput(options = {}) {
+function parseJsonRaw(raw, options = {}) {
   const { allowRepair = false } = options;
-  const raw = jsonInputEl.value.trim();
+  const trimmed = raw.trim();
 
-  if (!raw) {
+  if (!trimmed) {
     throw new Error("Input is empty");
   }
 
   try {
-    return { parsed: JSON.parse(raw), repaired: false };
+    return { parsed: JSON.parse(trimmed), repaired: false };
   } catch (strictError) {
     if (!allowRepair) {
       throw strictError;
     }
 
-    const repairedText = tryRepairJson(raw);
-    return { parsed: JSON.parse(repairedText), repaired: repairedText !== raw };
+    const repairedText = tryRepairJson(trimmed);
+    return { parsed: JSON.parse(repairedText), repaired: repairedText !== trimmed };
   }
+}
+
+function parseJsonInput(options = {}) {
+  return parseJsonRaw(jsonInputEl.value, options);
 }
 
 function formatJson() {
@@ -311,6 +444,99 @@ async function copyJsonOutput() {
   }
 }
 
+function clearRcsLoadedConfig() {
+  rcsLoadedUrlEl.value = "";
+  rcsLoadedUsernameEl.value = "";
+  rcsLoadedPasswordEl.value = "";
+}
+
+function getConfigForEnv(env) {
+  return env === "uat" ? state.setup.uat : state.setup.sit;
+}
+
+function hasRequiredConfig(config) {
+  return Boolean(config && config.url.trim() && config.username.trim() && config.password);
+}
+
+function loadRcsConfigForSelectedEnv() {
+  const env = rcsEnvEl.value;
+  const config = getConfigForEnv(env);
+
+  if (!hasRequiredConfig(config)) {
+    clearRcsLoadedConfig();
+    setStatus("missing configurations");
+    return null;
+  }
+
+  rcsLoadedUrlEl.value = config.url.trim();
+  rcsLoadedUsernameEl.value = config.username.trim();
+  rcsLoadedPasswordEl.value = "********";
+  return config;
+}
+
+function toBasicAuthHeader(username, password) {
+  const raw = `${username}:${password}`;
+  const encoded = btoa(unescape(encodeURIComponent(raw)));
+  return `Basic ${encoded}`;
+}
+
+async function callRcsApi() {
+  const config = loadRcsConfigForSelectedEnv();
+  if (!config) {
+    return;
+  }
+
+  let requestBody;
+  try {
+    requestBody = parseJsonRaw(rcsBodyInputEl.value, { allowRepair: true }).parsed;
+  } catch (error) {
+    setStatus(`Invalid JSON: ${error.message}`);
+    return;
+  }
+
+  rcsCallBtn.disabled = true;
+
+  try {
+    const response = await fetch(config.url.trim(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: toBasicAuthHeader(config.username.trim(), config.password)
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const rawText = await response.text();
+    let parsedBody;
+
+    try {
+      parsedBody = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      parsedBody = rawText;
+    }
+
+    const output = {
+      status: response.status,
+      ok: response.ok,
+      statusText: response.statusText,
+      body: parsedBody
+    };
+
+    rcsResponseEl.value = JSON.stringify(output, null, 2);
+    setStatus(response.ok ? "RCS API success" : "RCS API error");
+  } catch (error) {
+    rcsResponseEl.value = JSON.stringify({ error: error.message }, null, 2);
+    setStatus("RCS API request failed");
+  } finally {
+    rcsCallBtn.disabled = false;
+  }
+}
+
+function clearRcsTool() {
+  rcsBodyInputEl.value = "";
+  rcsResponseEl.value = "";
+}
+
 saveBtn.addEventListener("click", () => {
   saveCurrentNote().catch(() => setStatus("Save failed"));
 });
@@ -331,14 +557,33 @@ deleteBtn.addEventListener("click", () => {
   deleteCurrentTab().catch(() => setStatus("Delete failed"));
 });
 
+saveUatBtn.addEventListener("click", () => {
+  saveSetupEnvironment("uat").catch(() => setStatus("Save failed"));
+});
+
+saveSitBtn.addEventListener("click", () => {
+  saveSetupEnvironment("sit").catch(() => setStatus("Save failed"));
+});
+
 mainNotesTabEl.addEventListener("click", () => setMainTab("notes"));
 mainToolsTabEl.addEventListener("click", () => setMainTab("tools"));
+mainSetupTabEl.addEventListener("click", () => setMainTab("setup"));
+
+toolJsonTabEl.addEventListener("click", () => setToolTab("json"));
+toolRcsTabEl.addEventListener("click", () => setToolTab("rcs"));
+rcsEnvEl.addEventListener("change", loadRcsConfigForSelectedEnv);
 
 formatJsonBtn.addEventListener("click", formatJson);
 minifyJsonBtn.addEventListener("click", minifyJson);
 copyJsonBtn.addEventListener("click", () => {
   copyJsonOutput().catch(() => setStatus("Copy failed"));
 });
+
+rcsCallBtn.addEventListener("click", () => {
+  callRcsApi().catch(() => setStatus("RCS API request failed"));
+});
+
+rcsClearBtn.addEventListener("click", clearRcsTool);
 
 noteEl.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
