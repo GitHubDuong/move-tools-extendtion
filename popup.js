@@ -76,6 +76,36 @@ function createDefaultSetup() {
   };
 }
 
+function getCurrentLocalTimeValue() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function createDefaultToolsState() {
+  return {
+    json: {
+      input: "",
+      output: ""
+    },
+    rcs: {
+      env: "sit",
+      payloadType: "other",
+      contentType: "text/plain",
+      bodyInput: "",
+      response: ""
+    },
+    time: {
+      fromTimezone: "Asia/Ho_Chi_Minh",
+      toTimezone: "UTC",
+      inputTime: getCurrentLocalTimeValue(),
+      quickVnToUtc: true,
+      output: ""
+    }
+  };
+}
+
 function bytesToBase64(bytes) {
   let binary = "";
   bytes.forEach((b) => {
@@ -183,9 +213,11 @@ let state = {
   activeId: null,
   activeMainTab: "notes",
   activeToolTab: "json",
-  setup: createDefaultSetup()
+  setup: createDefaultSetup(),
+  tools: createDefaultToolsState()
 };
 let noteAutosaveTimer = null;
+let toolAutosaveTimer = null;
 let headingIndex = 0;
 const headingLevels = ["p", "h1", "h2", "h3"];
 
@@ -288,6 +320,92 @@ function renderSetupFields() {
   sitPasswordEl.value = state.setup.sit.password;
 }
 
+function normalizeTools(rawTools) {
+  const fallback = createDefaultToolsState();
+  if (!rawTools || typeof rawTools !== "object") {
+    return fallback;
+  }
+
+  const json = rawTools.json && typeof rawTools.json === "object" ? rawTools.json : {};
+  const rcs = rawTools.rcs && typeof rawTools.rcs === "object" ? rawTools.rcs : {};
+  const time = rawTools.time && typeof rawTools.time === "object" ? rawTools.time : {};
+
+  return {
+    json: {
+      input: typeof json.input === "string" ? json.input : fallback.json.input,
+      output: typeof json.output === "string" ? json.output : fallback.json.output
+    },
+    rcs: {
+      env: ["sit", "uat"].includes(rcs.env) ? rcs.env : fallback.rcs.env,
+      payloadType: typeof rcs.payloadType === "string" ? rcs.payloadType : fallback.rcs.payloadType,
+      contentType: typeof rcs.contentType === "string" ? rcs.contentType : fallback.rcs.contentType,
+      bodyInput: typeof rcs.bodyInput === "string" ? rcs.bodyInput : fallback.rcs.bodyInput,
+      response: typeof rcs.response === "string" ? rcs.response : fallback.rcs.response
+    },
+    time: {
+      fromTimezone: typeof time.fromTimezone === "string" ? time.fromTimezone : fallback.time.fromTimezone,
+      toTimezone: typeof time.toTimezone === "string" ? time.toTimezone : fallback.time.toTimezone,
+      inputTime: typeof time.inputTime === "string" ? time.inputTime : fallback.time.inputTime,
+      quickVnToUtc: typeof time.quickVnToUtc === "boolean" ? time.quickVnToUtc : fallback.time.quickVnToUtc,
+      output: typeof time.output === "string" ? time.output : fallback.time.output
+    }
+  };
+}
+
+function renderToolsFields() {
+  const tools = state.tools || createDefaultToolsState();
+
+  jsonInputEl.value = tools.json.input;
+  jsonOutputEl.value = tools.json.output;
+
+  rcsEnvEl.value = tools.rcs.env;
+  rcsPayloadTypeEl.value = tools.rcs.payloadType;
+  rcsContentTypeEl.value = tools.rcs.contentType;
+  rcsBodyInputEl.value = tools.rcs.bodyInput;
+  rcsResponseEl.value = tools.rcs.response;
+
+  setTimezoneIfAvailable(fromTimezoneEl, [tools.time.fromTimezone, "Asia/Ho_Chi_Minh"]);
+  setTimezoneIfAvailable(toTimezoneEl, [tools.time.toTimezone, "UTC", "Etc/UTC"]);
+  timeInputEl.value = tools.time.inputTime;
+  quickVnToUtcEl.checked = tools.time.quickVnToUtc;
+  applyQuickVnToUtcMode();
+  timeOutputEl.value = tools.time.output;
+}
+
+function syncToolsStateFromUi() {
+  state.tools = {
+    json: {
+      input: jsonInputEl.value,
+      output: jsonOutputEl.value
+    },
+    rcs: {
+      env: rcsEnvEl.value,
+      payloadType: rcsPayloadTypeEl.value,
+      contentType: rcsContentTypeEl.value,
+      bodyInput: rcsBodyInputEl.value,
+      response: rcsResponseEl.value
+    },
+    time: {
+      fromTimezone: fromTimezoneEl.value,
+      toTimezone: toTimezoneEl.value,
+      inputTime: timeInputEl.value,
+      quickVnToUtc: quickVnToUtcEl.checked,
+      output: timeOutputEl.value
+    }
+  };
+}
+
+function scheduleToolAutosave() {
+  if (toolAutosaveTimer) {
+    window.clearTimeout(toolAutosaveTimer);
+  }
+
+  toolAutosaveTimer = window.setTimeout(() => {
+    syncToolsStateFromUi();
+    persistState().catch(() => setStatus("Save failed"));
+  }, 300);
+}
+
 async function persistState() {
   await writeEncryptedStateFile(state);
   await chrome.storage.local.remove([STORAGE_KEY]);
@@ -382,6 +500,7 @@ function render() {
   renderTabs();
   renderEditor();
   renderSetupFields();
+  renderToolsFields();
   setToolTab(state.activeToolTab);
   setMainTab(state.activeMainTab);
 }
@@ -411,7 +530,8 @@ async function loadState() {
       activeId: first.id,
       activeMainTab: "notes",
       activeToolTab: "json",
-      setup: createDefaultSetup()
+      setup: createDefaultSetup(),
+      tools: createDefaultToolsState()
     };
     await persistState();
     render();
@@ -433,7 +553,8 @@ async function loadState() {
       activeId: first.id,
       activeMainTab: "notes",
       activeToolTab: "json",
-      setup: normalizeSetup(saved.setup)
+      setup: normalizeSetup(saved.setup),
+      tools: normalizeTools(saved.tools)
     };
   } else {
     const activeExists = safeNotes.some((n) => n.id === saved.activeId);
@@ -442,7 +563,8 @@ async function loadState() {
       activeId: activeExists ? saved.activeId : safeNotes[0].id,
       activeMainTab: ["notes", "tools", "setup"].includes(saved.activeMainTab) ? saved.activeMainTab : "notes",
       activeToolTab: ["json", "rcs", "time"].includes(saved.activeToolTab) ? saved.activeToolTab : "json",
-      setup: normalizeSetup(saved.setup)
+      setup: normalizeSetup(saved.setup),
+      tools: normalizeTools(saved.tools)
     };
   }
 
@@ -607,9 +729,11 @@ function formatJson() {
   try {
     const result = parseJsonInput({ allowRepair: true });
     jsonOutputEl.value = JSON.stringify(result.parsed, null, 2);
+    scheduleToolAutosave();
     setStatus(result.repaired ? "JSON fixed and formatted" : "JSON formatted");
   } catch (error) {
     jsonOutputEl.value = "";
+    scheduleToolAutosave();
     setStatus(`Invalid JSON: ${error.message}`);
   }
 }
@@ -618,9 +742,11 @@ function minifyJson() {
   try {
     const result = parseJsonInput();
     jsonOutputEl.value = JSON.stringify(result.parsed);
+    scheduleToolAutosave();
     setStatus("JSON minified");
   } catch (error) {
     jsonOutputEl.value = "";
+    scheduleToolAutosave();
     setStatus(`Invalid JSON: ${error.message}`);
   }
 }
@@ -715,9 +841,11 @@ async function callRcsApi() {
     };
 
     rcsResponseEl.value = JSON.stringify(output, null, 2);
+    scheduleToolAutosave();
     setStatus(response.ok ? "RCS API success" : "RCS API error");
   } catch (error) {
     rcsResponseEl.value = JSON.stringify({ error: error.message }, null, 2);
+    scheduleToolAutosave();
     setStatus("RCS API request failed");
   } finally {
     rcsCallBtn.disabled = false;
@@ -729,6 +857,7 @@ function clearRcsTool() {
   rcsPayloadTypeEl.value = "other";
   rcsContentTypeEl.value = "text/plain";
   rcsResponseEl.value = "";
+  scheduleToolAutosave();
 }
 
 function getSupportedTimeZones() {
@@ -757,12 +886,6 @@ function populateTimezoneSelect(timezoneEl, preferredTimezone = "") {
 function initTimeTool() {
   populateTimezoneSelect(fromTimezoneEl, "Asia/Ho_Chi_Minh");
   populateTimezoneSelect(toTimezoneEl, "America/New_York");
-
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2, "0");
-  const mm = String(now.getMinutes()).padStart(2, "0");
-  timeInputEl.value = `${hh}:${mm}`;
-  applyQuickVnToUtcMode();
 }
 
 function getTimeZoneOffsetMinutes(timeZone, date) {
@@ -884,9 +1007,11 @@ function convertCountryTime() {
     ];
     result.push(`Output: ${isoOutput}`);
     timeOutputEl.value = result.join("\n");
+    scheduleToolAutosave();
     setStatus("Time converted");
   } catch (error) {
     timeOutputEl.value = "";
+    scheduleToolAutosave();
     setStatus(`Convert failed: ${error.message}`);
   }
 }
@@ -898,6 +1023,7 @@ function swapTimeDirection() {
   const fromTimezone = fromTimezoneEl.value;
   fromTimezoneEl.value = toTimezoneEl.value;
   toTimezoneEl.value = fromTimezone;
+  scheduleToolAutosave();
 }
 
 function setTimezoneIfAvailable(selectEl, preferredValues) {
@@ -950,12 +1076,17 @@ toolJsonTabEl.addEventListener("click", () => setToolTab("json"));
 toolRcsTabEl.addEventListener("click", () => setToolTab("rcs"));
 toolTimeTabEl.addEventListener("click", () => setToolTab("time"));
 rcsEnvEl.addEventListener("change", loadRcsConfigForSelectedEnv);
+rcsEnvEl.addEventListener("change", scheduleToolAutosave);
+rcsPayloadTypeEl.addEventListener("change", scheduleToolAutosave);
+rcsContentTypeEl.addEventListener("input", scheduleToolAutosave);
+rcsBodyInputEl.addEventListener("input", scheduleToolAutosave);
 
 formatJsonBtn.addEventListener("click", formatJson);
 minifyJsonBtn.addEventListener("click", minifyJson);
 copyJsonBtn.addEventListener("click", () => {
   copyJsonOutput().catch(() => setStatus("Copy failed"));
 });
+jsonInputEl.addEventListener("input", scheduleToolAutosave);
 
 rcsCallBtn.addEventListener("click", () => {
   callRcsApi().catch(() => setStatus("RCS API request failed"));
@@ -964,7 +1095,13 @@ rcsCallBtn.addEventListener("click", () => {
 rcsClearBtn.addEventListener("click", clearRcsTool);
 convertTimeBtn.addEventListener("click", convertCountryTime);
 swapTimeBtn.addEventListener("click", swapTimeDirection);
-quickVnToUtcEl.addEventListener("change", applyQuickVnToUtcMode);
+quickVnToUtcEl.addEventListener("change", () => {
+  applyQuickVnToUtcMode();
+  scheduleToolAutosave();
+});
+fromTimezoneEl.addEventListener("change", scheduleToolAutosave);
+toTimezoneEl.addEventListener("change", scheduleToolAutosave);
+timeInputEl.addEventListener("input", scheduleToolAutosave);
 
 boldBtn.addEventListener("click", () => applyNoteFormat("bold"));
 italicBtn.addEventListener("click", () => applyNoteFormat("italic"));
@@ -998,8 +1135,7 @@ noteEditorEl.addEventListener("keydown", (event) => {
 noteEditorEl.addEventListener("input", scheduleNoteAutosave);
 noteTitleEl.addEventListener("input", scheduleNoteAutosave);
 
+initTimeTool();
 loadState().catch(() => {
   setStatus("Failed to load notes");
 });
-
-initTimeTool();
