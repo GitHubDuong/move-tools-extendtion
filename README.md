@@ -23,15 +23,18 @@ A Chrome extension with three main tabs:
 
 ## Features
 
+- Tool data is stored in an encrypted file (`move-tool-data.enc`) in extension private storage.
+
 ### Notes tab
 
 - Multiple note tabs
 - Create new tab
 - Rename tab title
 - Delete tab
-- Save note content
+- Auto-save note content while typing
 - Clear note content
 - Rich text editing: bold, italic, underline, bullet list
+- Additional editor tools: heading styles, text color, insert link
 - Keyboard save (`Ctrl+S` / `Cmd+S`)
 - Persistent storage via `chrome.storage.local`
 

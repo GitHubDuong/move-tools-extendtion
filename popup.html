@@ -29,15 +29,18 @@
         </div>
 
         <div class="editor-toolbar" aria-label="Note formatting tools">
+          <button id="headingBtn" class="secondary" type="button" aria-label="Heading style" title="Heading">H</button>
           <button id="boldBtn" class="secondary" type="button"><strong>B</strong></button>
           <button id="italicBtn" class="secondary" type="button"><em>I</em></button>
           <button id="underlineBtn" class="secondary" type="button"><u>U</u></button>
-          <button id="bulletBtn" class="secondary" type="button">• List</button>
+          <button id="bulletBtn" class="secondary" type="button" aria-label="Bullet list" title="Bullet list">•</button>
+          <button id="colorBtn" class="secondary" type="button" aria-label="Text color" title="Text color">C</button>
+          <input id="textColorInput" class="toolbar-color hidden-color-input" type="color" aria-label="Text color" value="#111827" />
+          <button id="linkBtn" class="secondary" type="button" aria-label="Insert link" title="Insert link">L</button>
         </div>
         <div id="noteEditor" class="note-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
 
         <div class="actions">
-          <button id="saveBtn">Save</button>
           <button id="clearBtn" class="secondary">Clear</button>
         </div>
 

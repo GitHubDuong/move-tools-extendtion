@@ -1,5 +1,9 @@
 const STORAGE_KEY = "text_note_state_v2";
+const ENCRYPTION_KEY_STORAGE = "move_tool_encryption_key_v1";
+const ENCRYPTED_FILE_NAME = "move-tool-data.enc";
 const DEFAULT_TITLE = "New Note";
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
 const mainNotesTabEl = document.getElementById("mainNotesTab");
 const mainToolsTabEl = document.getElementById("mainToolsTab");
@@ -18,11 +22,14 @@ const timeToolPanelEl = document.getElementById("timeToolPanel");
 const tabsEl = document.getElementById("tabs");
 const noteTitleEl = document.getElementById("noteTitle");
 const noteEditorEl = document.getElementById("noteEditor");
+const headingBtn = document.getElementById("headingBtn");
 const boldBtn = document.getElementById("boldBtn");
 const italicBtn = document.getElementById("italicBtn");
 const underlineBtn = document.getElementById("underlineBtn");
 const bulletBtn = document.getElementById("bulletBtn");
-const saveBtn = document.getElementById("saveBtn");
+const colorBtn = document.getElementById("colorBtn");
+const textColorInput = document.getElementById("textColorInput");
+const linkBtn = document.getElementById("linkBtn");
 const clearBtn = document.getElementById("clearBtn");
 const renameBtn = document.getElementById("renameBtn");
 const deleteBtn = document.getElementById("deleteBtn");
@@ -69,6 +76,108 @@ function createDefaultSetup() {
   };
 }
 
+function bytesToBase64(bytes) {
+  let binary = "";
+  bytes.forEach((b) => {
+    binary += String.fromCharCode(b);
+  });
+  return btoa(binary);
+}
+
+function base64ToBytes(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function getOrCreateEncryptionKey() {
+  const stored = await chrome.storage.local.get([ENCRYPTION_KEY_STORAGE]);
+  const keyBase64 = stored[ENCRYPTION_KEY_STORAGE];
+
+  if (typeof keyBase64 === "string" && keyBase64) {
+    return crypto.subtle.importKey(
+      "raw",
+      base64ToBytes(keyBase64),
+      { name: "AES-GCM" },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+  const raw = await crypto.subtle.exportKey("raw", key);
+  await chrome.storage.local.set({
+    [ENCRYPTION_KEY_STORAGE]: bytesToBase64(new Uint8Array(raw))
+  });
+  return key;
+}
+
+async function encryptStateObject(obj) {
+  const key = await getOrCreateEncryptionKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const plain = encoder.encode(JSON.stringify(obj));
+  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plain);
+  return {
+    v: 1,
+    iv: bytesToBase64(iv),
+    data: bytesToBase64(new Uint8Array(encrypted))
+  };
+}
+
+async function decryptStateObject(payload) {
+  if (!payload || typeof payload !== "object" || payload.v !== 1 || !payload.iv || !payload.data) {
+    throw new Error("Invalid encrypted payload");
+  }
+
+  const key = await getOrCreateEncryptionKey();
+  const iv = base64ToBytes(payload.iv);
+  const encrypted = base64ToBytes(payload.data);
+  const plainBuffer = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encrypted);
+  return JSON.parse(decoder.decode(plainBuffer));
+}
+
+async function readEncryptedStateFile() {
+  if (!navigator.storage?.getDirectory) {
+    throw new Error("Private file storage not supported");
+  }
+
+  const root = await navigator.storage.getDirectory();
+  let handle;
+  try {
+    handle = await root.getFileHandle(ENCRYPTED_FILE_NAME, { create: false });
+  } catch (error) {
+    if (error && error.name === "NotFoundError") {
+      return null;
+    }
+    throw error;
+  }
+
+  const file = await handle.getFile();
+  if (!file.size) {
+    return null;
+  }
+
+  const rawText = await file.text();
+  const payload = JSON.parse(rawText);
+  return decryptStateObject(payload);
+}
+
+async function writeEncryptedStateFile(obj) {
+  if (!navigator.storage?.getDirectory) {
+    throw new Error("Private file storage not supported");
+  }
+
+  const root = await navigator.storage.getDirectory();
+  const handle = await root.getFileHandle(ENCRYPTED_FILE_NAME, { create: true });
+  const writable = await handle.createWritable();
+  const payload = await encryptStateObject(obj);
+  await writable.write(JSON.stringify(payload));
+  await writable.close();
+}
+
 let state = {
   notes: [],
   activeId: null,
@@ -76,6 +185,9 @@ let state = {
   activeToolTab: "json",
   setup: createDefaultSetup()
 };
+let noteAutosaveTimer = null;
+let headingIndex = 0;
+const headingLevels = ["p", "h1", "h2", "h3"];
 
 function setStatus(message) {
   statusEl.textContent = message;
@@ -115,6 +227,33 @@ function applyNoteFormat(command) {
   document.execCommand(command, false);
 }
 
+function applyHeading(level) {
+  noteEditorEl.focus();
+  const tag = level === "p" ? "P" : level.toUpperCase();
+  document.execCommand("formatBlock", false, tag);
+}
+
+function cycleHeading() {
+  headingIndex = (headingIndex + 1) % headingLevels.length;
+  applyHeading(headingLevels[headingIndex]);
+}
+
+function applyTextColor(color) {
+  noteEditorEl.focus();
+  document.execCommand("foreColor", false, color);
+}
+
+function insertLink() {
+  noteEditorEl.focus();
+  const inputUrl = window.prompt("Enter URL");
+  if (!inputUrl) {
+    return;
+  }
+
+  const normalized = /^https?:\/\//i.test(inputUrl) ? inputUrl : `https://${inputUrl}`;
+  document.execCommand("createLink", false, normalized);
+}
+
 function normalizeSetup(rawSetup) {
   const fallback = createDefaultSetup();
   if (!rawSetup || typeof rawSetup !== "object") {
@@ -150,7 +289,8 @@ function renderSetupFields() {
 }
 
 async function persistState() {
-  await chrome.storage.local.set({ [STORAGE_KEY]: state });
+  await writeEncryptedStateFile(state);
+  await chrome.storage.local.remove([STORAGE_KEY]);
 }
 
 function getTabLabel(title, index) {
@@ -247,8 +387,22 @@ function render() {
 }
 
 async function loadState() {
-  const result = await chrome.storage.local.get([STORAGE_KEY]);
-  const saved = result[STORAGE_KEY];
+  let saved = null;
+  try {
+    saved = await readEncryptedStateFile();
+  } catch {
+    saved = null;
+  }
+
+  if (!saved) {
+    const legacy = await chrome.storage.local.get([STORAGE_KEY]);
+    if (legacy[STORAGE_KEY]) {
+      saved = legacy[STORAGE_KEY];
+      state = saved;
+      await persistState();
+      await chrome.storage.local.remove([STORAGE_KEY]);
+    }
+  }
 
   if (!saved || !Array.isArray(saved.notes) || saved.notes.length === 0) {
     const first = createNote("Note 1", "");
@@ -306,6 +460,16 @@ async function saveCurrentNote() {
   render();
   await persistState();
   setStatus("Saved");
+}
+
+function scheduleNoteAutosave() {
+  if (noteAutosaveTimer) {
+    window.clearTimeout(noteAutosaveTimer);
+  }
+
+  noteAutosaveTimer = window.setTimeout(() => {
+    saveCurrentNote().catch(() => setStatus("Save failed"));
+  }, 450);
 }
 
 async function clearCurrentNote() {
@@ -569,7 +733,9 @@ function clearRcsTool() {
 
 function getSupportedTimeZones() {
   if (typeof Intl.supportedValuesOf === "function") {
-    return Intl.supportedValuesOf("timeZone");
+    const zones = Intl.supportedValuesOf("timeZone");
+    const unique = Array.from(new Set([...zones, "UTC"]));
+    return unique.sort((a, b) => a.localeCompare(b));
   }
   return ["UTC"];
 }
@@ -680,6 +846,25 @@ function formatInTimeZone(utcMs, timeZone) {
   return formatter.format(new Date(utcMs));
 }
 
+function formatIsoInTimeZone(utcMs, timeZone) {
+  const date = new Date(utcMs);
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
+
+  const parts = formatter.formatToParts(date);
+  const get = (type) => parts.find((p) => p.type === type)?.value || "00";
+  const offset = formatOffset(getTimeZoneOffsetMinutes(timeZone, date)).replace("UTC", "");
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}${offset}`;
+}
+
 function convertCountryTime() {
   const inputValue = timeInputEl.value;
   if (!inputValue) {
@@ -691,7 +876,7 @@ function convertCountryTime() {
     const fromZone = fromTimezoneEl.value;
     const toZone = toTimezoneEl.value;
     const utcMs = localTimeInZoneToUtcMs(inputValue, fromZone);
-    const isoOutput = new Date(utcMs).toISOString();
+    const isoOutput = formatIsoInTimeZone(utcMs, toZone);
     const result = [
       `From: ${fromZone}`,
       `To: ${toZone}`,
@@ -732,10 +917,6 @@ function applyQuickVnToUtcMode() {
   fromTimezoneEl.disabled = quickMode;
   toTimezoneEl.disabled = quickMode;
 }
-
-saveBtn.addEventListener("click", () => {
-  saveCurrentNote().catch(() => setStatus("Save failed"));
-});
 
 clearBtn.addEventListener("click", () => {
   clearCurrentNote().catch(() => setStatus("Clear failed"));
@@ -789,14 +970,33 @@ boldBtn.addEventListener("click", () => applyNoteFormat("bold"));
 italicBtn.addEventListener("click", () => applyNoteFormat("italic"));
 underlineBtn.addEventListener("click", () => applyNoteFormat("underline"));
 bulletBtn.addEventListener("click", () => applyNoteFormat("insertUnorderedList"));
+headingBtn.addEventListener("click", cycleHeading);
+colorBtn.addEventListener("click", () => textColorInput.click());
+textColorInput.addEventListener("input", () => applyTextColor(textColorInput.value));
+linkBtn.addEventListener("click", insertLink);
 closeToolBtn.addEventListener("click", () => window.close());
 
 noteEditorEl.addEventListener("keydown", (event) => {
+  if (event.key === "Tab") {
+    event.preventDefault();
+    noteEditorEl.focus();
+    if (event.shiftKey) {
+      document.execCommand("outdent", false);
+    } else {
+      document.execCommand("indent", false);
+    }
+    scheduleNoteAutosave();
+    return;
+  }
+
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
     event.preventDefault();
     saveCurrentNote().catch(() => setStatus("Save failed"));
   }
 });
+
+noteEditorEl.addEventListener("input", scheduleNoteAutosave);
+noteTitleEl.addEventListener("input", scheduleNoteAutosave);
 
 loadState().catch(() => {
   setStatus("Failed to load notes");

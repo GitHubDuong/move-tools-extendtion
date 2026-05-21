@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Move Tool",
   "description": "Tool create by Duong Move Team",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "permissions": ["storage", "sidePanel"],
   "host_permissions": ["<all_urls>"],
   "background": {
